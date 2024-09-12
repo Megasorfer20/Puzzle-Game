@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Video;
+using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 
 public class GameController : MonoBehaviour
 {
@@ -14,33 +16,46 @@ public class GameController : MonoBehaviour
     public GameObject winModal;            // Modal de victoria
     public GameObject loseModal;           // Modal de derrota
     public GameObject nextPlayerModal;     // Modal de siguiente jugador (dos jugadores)
+    public GameObject finalResultModal;       // Modal de resultado final (dos jugadores)
     public TMP_Text timerText;             // Temporizador en la UI
     public TMP_Text playerIndicatorText;   // Indicador de Jugador 1 o 2
     public TMP_Text livesText;             // Texto para mostrar las vidas restantes (solo un jugador)
+    public TMP_Text finalResultText;          // Texto que muestra el resultado final (ganador o empate)
 
-    public Button restartButton;           // Botón para reiniciar
-    public Button homeButton;              // Botón para volver al menú principal
-    public Button readyButton;             // Botón de "Listo" en el modal
+
+
+    public Button restartButton;           // Botï¿½n para reiniciar
+    public Button homeButton;              // Botï¿½n para volver al menï¿½ principal
+    public Button readyButton;             // Botï¿½n de "Listo" en el modal
 
     [Header("Video Settings")]
     public VideoPlayer winVideo;           // Video de victoria
     public RawImage videoDisplay;          // RawImage donde se muestra el video
 
     [Header("Game Mode Buttons")]
-    public Button singlePlayerButton;      // Botón de Un Jugador
-    public Button twoPlayerButton;         // Botón de Dos Jugadores
+    public Button singlePlayerButton;      // Botï¿½n de Un Jugador
+    public Button twoPlayerButton;         // Botï¿½n de Dos Jugadores
 
     private float timeRemaining = 30f;     // Tiempo inicial
     private bool timerIsRunning = false;   // Control del temporizador
     private bool playerOneTurn = true;     // Para dos jugadores
     private bool gameOver = false;         // Control del estado del juego
-    private int playerLives = 2;           // Vidas (solo un jugador)
+    private int playerLives = 2;
+
+    private bool playerWin = false;
+    private bool player1Win = false;
+    private bool player2Win = false;
+
+    [SerializeField] private UnityEvent eventosCall1, eventosCall2;
 
     void Start()
     {
         // Asignar funciones a los botones
         singlePlayerButton.onClick.AddListener(() => StartGame(GameMode.SinglePlayer));
         twoPlayerButton.onClick.AddListener(() => StartGame(GameMode.TwoPlayers));
+
+        // AsegÃºrate de asignar el botÃ³n de "Listo"
+        readyButton.onClick.AddListener(StartTimer);
     }
 
     void Update()
@@ -65,9 +80,13 @@ public class GameController : MonoBehaviour
     {
         readyModal.SetActive(true);
         timerIsRunning = false;
+
+        // Reiniciar el temporizador a 30 segundos
+        timeRemaining = 30f;
+        timerText.text = timeRemaining.ToString("F0") + "s";  // Actualizar el texto del cronÃ³metro
     }
 
-    // Función para iniciar el juego
+    // Funciï¿½n para iniciar el juego
     public void StartGame(GameMode mode)
     {
         currentGameMode = mode;
@@ -93,11 +112,13 @@ public class GameController : MonoBehaviour
     // Iniciar el temporizador al pulsar "Listo"
     public void StartTimer()
     {
+        timeRemaining = 30f;
         timerIsRunning = true;
         readyModal.SetActive(false);
+        gameOver = false;
     }
 
-    // Función que se llama cuando el jugador gana
+    // Funciï¿½n que se llama cuando el jugador gana
     public void PlayerWins()
     {
         StartCoroutine(PlayWinVideoAndShowModal());
@@ -130,11 +151,11 @@ public class GameController : MonoBehaviour
     void EndGame(bool didWin)
     {
         timerIsRunning = false;
-        gameOver = true;
 
         if (didWin)
         {
             ShowWinModal();
+            gameOver = true;  // El juego termina si se gana
         }
         else
         {
@@ -142,17 +163,56 @@ public class GameController : MonoBehaviour
             {
                 playerLives--;
                 UpdateLivesText();
-                ShowReadyModal();  // Si aún hay vidas, reintentar
+                ShowReadyModal();  // Si aÃºn hay vidas, reintentar y mostrar el modal
+                gameOver = false;  // El juego no ha terminado, hay mÃ¡s vidas
+            }
+            else if (currentGameMode == GameMode.SinglePlayer && playerLives == 0)
+            {
+                ShowLoseModal();  // Mostrar modal de derrota
+                gameOver = true;  // El juego ha terminado
             }
             else if (currentGameMode == GameMode.TwoPlayers)
             {
-                ShowNextPlayerModal();  // Si es modo de dos jugadores, cambiar de jugador
+                if (!playerOneTurn)  // Si el turno fue del jugador 2
+                {
+                    ShowFinalResultModal();  // Mostrar resultado final despuÃ©s del turno del jugador 2
+                    gameOver = true;  // El juego ha terminado
+                }
+                else
+                {
+                    ShowNextPlayerModal();  // Mostrar el modal de "Siguiente Jugador"
+                    gameOver = false;  // El juego no ha terminado, es el turno del siguiente jugador
+                }
             }
             else
             {
-                ShowLoseModal();  // Perdiste, mostrar modal de derrota
+                ShowLoseModal();  // Si no hay vidas o jugadores restantes, mostrar derrota
+                gameOver = true;  // Ahora sÃ­, el juego ha terminado
             }
         }
+    }
+
+    void ShowFinalResultModal()
+    {
+        // LÃ³gica para determinar quiÃ©n ganÃ³
+        if (player1Win && player2Win)
+        {
+            finalResultText.text = "Â¡Empate!";
+        }
+        else if (player1Win)  // Ejemplo de lÃ³gica, puedes ajustarlo
+        {
+            finalResultText.text = "Â¡Jugador 1 Gana!";
+        }
+        else if (player2Win)
+        {
+            finalResultText.text = "Â¡Jugador 2 Gana!";
+        }
+        else
+        {
+            finalResultText.text = "Â¡Empate!";
+        }
+
+        finalResultModal.SetActive(true);  // Mostrar modal de resultado final
     }
 
     // Mostrar el modal de siguiente jugador (dos jugadores)
@@ -161,6 +221,17 @@ public class GameController : MonoBehaviour
         nextPlayerModal.SetActive(true);
         playerOneTurn = !playerOneTurn;  // Cambiar de jugador
         UpdatePlayerIndicator();
+
+        // Cerrar el modal de siguiente jugador antes de reiniciar el turno
+        StartCoroutine(CloseNextPlayerModalAndRestart());
+    }
+
+    // Corrutina para esperar un breve momento antes de reiniciar el turno
+    IEnumerator CloseNextPlayerModalAndRestart()
+    {
+        yield return new WaitForSeconds(2); // Esperar 2 segundos antes de cerrar el modal
+        nextPlayerModal.SetActive(false);  // Cerrar el modal
+        ShowReadyModal();  // Mostrar el modal de "Listo" para el nuevo turno
     }
 
     // Mostrar el modal de derrota
@@ -181,16 +252,25 @@ public class GameController : MonoBehaviour
         playerIndicatorText.text = playerOneTurn ? "Jugador 1" : "Jugador 2";
     }
 
-    // Función para reiniciar el juego
+    // Funciï¿½n para reiniciar el juego
     public void RestartGame()
     {
         StartGame(currentGameMode);
     }
 
-    // Función para ir al menú principal
+
+    public void ReloadGame()
+    {
+        // Obtener el nombre de la escena actual
+        string currentSceneName = SceneManager.GetActiveScene().name;
+
+        // Recargar la escena actual
+        SceneManager.LoadScene(currentSceneName);
+    }
+
+    // Funciï¿½n para ir al menï¿½ principal
     public void GoHome()
     {
-        // Lógica para ir al menú principal
-        // SceneManager.LoadScene("MainMenu");
+        homeButton.onClick.AddListener(ReloadGame);
     }
 }
