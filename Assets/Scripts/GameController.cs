@@ -212,7 +212,11 @@ public class GameController : MonoBehaviour
             finalResultText.text = "¡Empate!";
         }
 
-        finalResultModal.SetActive(true);  // Mostrar modal de resultado final
+        finalResultModal.SetActive(true);
+        // Mostrar modal de resultado final
+
+        restartButton.gameObject.SetActive(true);
+        homeButton.gameObject.SetActive(true);
     }
 
     // Mostrar el modal de siguiente jugador (dos jugadores)
@@ -238,6 +242,8 @@ public class GameController : MonoBehaviour
     void ShowLoseModal()
     {
         loseModal.SetActive(true);
+        restartButton.gameObject.SetActive(true);
+        homeButton.gameObject.SetActive(true);
     }
 
     // Actualizar el texto de vidas
